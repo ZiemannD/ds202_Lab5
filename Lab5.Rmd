@@ -1,0 +1,130 @@
+---
+title: "Lab5"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Question 1**
+```{r}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+acc <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/accident.csv", stringsAsFactors = FALSE)
+pers <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/person.csv", stringsAsFactors = FALSE)
+
+fatal <- pers %>% filter(INJ_SEV == "4")
+```
+
+**Question 2**
+```{r}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+fatal <- pers %>% filter(INJ_SEV == "4")
+dangerousMake <- fatal %>% group_by(MAKE, STATE) %>% 
+  summarise(
+  personsHit=sum(PER_NO))
+```
+
+**Question 3**
+```{r}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+state <- map_data('state')
+glc <- readxl::read_xlsx("FRPP_GLC_-_United_StatesNov42021.xlsx")
+glc$`State Name`<- tolower(glc$`State Name`)
+glc$`State Code`<- as.numeric(glc$`State Code`)
+labels <- state %>% group_by(region) %>% 
+  summarise(long=mean(long, na.rm=TRUE), lat=mean(lat, na.rm=TRUE))
+labels <- left_join(labels, glc, 
+                    by=c('region' = 'State Name'))
+labels <- left_join(labels, dangerousMake, 
+                    by=c('State Code'='STATE'))
+labels$MAKE <- factor(labels$MAKE, levels=c(12, 20, 49, 37),
+                      labels=c('Ford', 'Chevrolet', 'Toyota', 
+                               'Honda'))
+state %>% ggplot() + 
+  geom_polygon(aes(x=long, y=lat, group=group),
+               color='grey', fill='black') + 
+  geom_text(data=labels, aes(label=MAKE, x=long, y=lat), 
+            color='lightblue', size=3)
+```
+
+**Question 4**
+```{r}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+acc2 <- subset(acc, select = 
+                 c(STATE, ST_CASE,
+                   COUNTY, 
+                   CITY, DAY, 
+                   MONTH, YEAR, 
+                   DAY_WEEK, HOUR, 
+                   LATITUDE, LONGITUD))
+pers2 <- subset(pers, select = 
+                  c(STATE, ST_CASE,
+                    COUNTY, DAY,
+                    MONTH, HOUR, 
+                    MAKE, SEX,
+                    INJ_SEV))
+joined <- full_join(acc2, pers2, by='ST_CASE')
+joinedFatal <- joined %>% filter(INJ_SEV=='4')
+```
+
+I decided to drop the columns that seemed unecessary, as RStudio could not create a dataframe that was large enough to contain all of the data.
+
+**Question 5**
+```{r}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+joinedFatal %>% ggplot(aes(x=wday(DAY_WEEK, label = TRUE))) + 
+                         geom_bar()
+```
+
+The days of the week that have the highest number of deaths related to car accidents are Fridays, Saturdays, and Sundays.
+
+```{r}
+joinedFatal %>% ggplot(aes(x=SEX)) + geom_bar()
+```
+
+In the dataset, males are coded as 1 and females are coded as 2. According to this graph, men make up much of car accident deaths.
+
+```{r}
+joinedFatal %>% ggplot(aes(x=HOUR.x)) + 
+  geom_bar()
+```
+
+Many car accident deaths take place in the evenings and late at night, there are relatively few in the mornings and there is a steady increase after noon.
+
+**Question 6**
+```{r}
+ggplot(state, aes(x=long, y=lat)) + 
+    geom_polygon(aes(group=group)) + 
+    geom_point(aes(x=LONGITUD, y=LATITUDE), data=joinedFatal,
+               color='lightblue',
+               alpha=0.2, size=0.02) + 
+    xlim(-130, -60) + ylim(20, 50) +
+    coord_map()
+```
+
+Most of the observed deaths were concentrated around urban areas. I noticed that the areas where cities like Chicago, New York City, Las Angeles, Dallas, and Miami are roughy located also have a high number of car accident deaths.
